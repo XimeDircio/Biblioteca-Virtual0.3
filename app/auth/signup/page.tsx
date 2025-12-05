@@ -40,6 +40,18 @@ export default function SignUpPage() {
       return
     }
 
+    if (!fullName.trim()) {
+      setError("El nombre completo es requerido")
+      setIsLoading(false)
+      return
+    }
+
+    if (!career) {
+      setError("Por favor selecciona una carrera")
+      setIsLoading(false)
+      return
+    }
+
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -54,8 +66,23 @@ export default function SignUpPage() {
 
       if (error) throw error
 
-      // Si el registro fue exitoso, redirigir al perfil directamente
       if (data.user) {
+        const { error: profileError } = await supabase.from("profiles").upsert({
+          id: data.user.id,
+          full_name: fullName,
+          career: career,
+          avatar_url: null,
+          books_read: 0,
+          hours_reading: 0,
+          favorites: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+
+        if (profileError) {
+          console.error("Error creating profile:", profileError)
+        }
+
         router.push("/profile")
         router.refresh()
       }
