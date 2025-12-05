@@ -20,7 +20,7 @@ export async function borrowBook(bookId: string) {
     .from("books_inventory")
     .select("available_copies")
     .eq("book_id", bookId)
-    .single()
+    .maybeSingle()
 
   if (!inventory || inventory.available_copies <= 0) {
     return { error: "No hay copias disponibles" }
@@ -33,13 +33,12 @@ export async function borrowBook(bookId: string) {
     .eq("user_id", user.id)
     .eq("book_id", bookId)
     .eq("status", "active")
-    .single()
+    .maybeSingle()
 
   if (existingLoan) {
     return { error: "Ya tienes este libro en préstamo" }
   }
 
-  // Crear préstamo (14 días de plazo)
   const dueDate = new Date()
   dueDate.setDate(dueDate.getDate() + 14)
 
@@ -47,18 +46,25 @@ export async function borrowBook(bookId: string) {
     user_id: user.id,
     book_id: bookId,
     due_date: dueDate.toISOString(),
-    status: "active",
+    status: "pending",
+    approved: false,
   })
 
   if (error) {
-    console.error("[v0] Error al crear préstamo:", error)
+    console.error("Error al crear préstamo:", error)
     return { error: "Error al procesar el préstamo" }
   }
+
+  // Reducir copia disponible
+  await supabase
+    .from("books_inventory")
+    .update({ available_copies: inventory.available_copies - 1 })
+    .eq("book_id", bookId)
 
   revalidatePath("/profile")
   revalidatePath(`/book/${bookId}`)
 
-  return { success: true }
+  return { success: true, message: "Solicitud enviada. Un administrador debe aprobar tu préstamo." }
 }
 
 export async function returnBook(loanId: string) {
@@ -83,7 +89,7 @@ export async function returnBook(loanId: string) {
     .eq("user_id", user.id)
 
   if (error) {
-    console.error("[v0] Error al devolver libro:", error)
+    console.error("Error al devolver libro:", error)
     return { error: "Error al devolver el libro" }
   }
 
@@ -95,7 +101,27 @@ export async function returnBook(loanId: string) {
 export async function getBookAvailability(bookId: string) {
   const supabase = await createClient()
 
-  const { data } = await supabase.from("books_inventory").select("*").eq("book_id", bookId).single()
+  const { data } = await supabase.from("books_inventory").select("*").eq("book_id", bookId).maybeSingle()
+
+  return data
+}
+
+export async function getUserLoanForBook(bookId: string) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) return null
+
+  const { data } = await supabase
+    .from("book_loans")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("book_id", bookId)
+    .in("status", ["active", "pending"])
+    .maybeSingle()
 
   return data
 }

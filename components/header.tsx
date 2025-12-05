@@ -1,6 +1,6 @@
 "use client"
 
-import { BookOpen, User, LogIn } from "lucide-react"
+import { BookOpen, User, LogIn, Shield } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
@@ -9,6 +9,7 @@ import { useEffect, useState } from "react"
 export function Header() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
@@ -17,6 +18,17 @@ export function Header() {
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUser(user)
       setLoading(false)
+
+      if (user) {
+        supabase
+          .from("admin_users")
+          .select("role")
+          .eq("user_id", user.id)
+          .maybeSingle()
+          .then(({ data }) => {
+            setIsAdmin(!!data)
+          })
+      }
     })
 
     // Escuchar cambios en la autenticación
@@ -24,6 +36,9 @@ export function Header() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
+      if (!session?.user) {
+        setIsAdmin(false)
+      }
     })
 
     return () => subscription.unsubscribe()
@@ -48,6 +63,12 @@ export function Header() {
           <Link href="/about" className="text-sm hover:underline">
             Acerca de
           </Link>
+          {!loading && isAdmin && (
+            <Link href="/admin" className="flex items-center gap-2 text-sm hover:underline">
+              <Shield className="h-4 w-4" />
+              Admin
+            </Link>
+          )}
           {!loading &&
             (user ? (
               <Link href="/profile" className="flex items-center gap-2 text-sm hover:underline">

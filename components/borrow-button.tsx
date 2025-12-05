@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { BookCheck, Loader2 } from "lucide-react"
+import { BookCheck, Loader2, Clock } from "lucide-react"
 import { borrowBook } from "@/app/actions/book-loans"
 import { useRouter } from "next/navigation"
 
@@ -10,9 +10,10 @@ type BorrowButtonProps = {
   bookId: string
   availableCopies: number
   hasActiveLoan: boolean
+  hasPendingLoan?: boolean
 }
 
-export function BorrowButton({ bookId, availableCopies, hasActiveLoan }: BorrowButtonProps) {
+export function BorrowButton({ bookId, availableCopies, hasActiveLoan, hasPendingLoan }: BorrowButtonProps) {
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
 
@@ -24,9 +25,18 @@ export function BorrowButton({ bookId, availableCopies, hasActiveLoan }: BorrowB
     if (result.error) {
       alert(result.error)
     } else {
-      alert("¡Libro prestado exitosamente! Tienes 14 días para devolverlo.")
+      alert(result.message || "¡Solicitud enviada! Un administrador revisará tu préstamo.")
       router.refresh()
     }
+  }
+
+  if (hasPendingLoan) {
+    return (
+      <Button variant="secondary" disabled className="w-full bg-orange-100 text-orange-700 hover:bg-orange-100">
+        <Clock className="h-4 w-4 mr-2" />
+        Pendiente de aprobación
+      </Button>
+    )
   }
 
   if (hasActiveLoan) {
@@ -56,7 +66,7 @@ export function BorrowButton({ bookId, availableCopies, hasActiveLoan }: BorrowB
       ) : (
         <>
           <BookCheck className="h-4 w-4 mr-2" />
-          Pedir prestado ({availableCopies} disponibles)
+          Solicitar préstamo ({availableCopies} disponibles)
         </>
       )}
     </Button>
