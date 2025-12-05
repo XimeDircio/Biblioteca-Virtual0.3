@@ -33,8 +33,6 @@ export default async function BookPage({ params }: PageProps) {
   const { data: inventory } = await supabase.from("books_inventory").select("*").eq("book_id", id).maybeSingle()
 
   let hasActiveLoan = false
-  let hasPendingLoan = false
-
   if (user) {
     const { data: activeLoan } = await supabase
       .from("book_loans")
@@ -42,20 +40,9 @@ export default async function BookPage({ params }: PageProps) {
       .eq("user_id", user.id)
       .eq("book_id", id)
       .eq("status", "active")
-      .eq("approved", true)
       .maybeSingle()
 
     hasActiveLoan = !!activeLoan
-
-    const { data: pendingLoan } = await supabase
-      .from("book_loans")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("book_id", id)
-      .eq("status", "pending")
-      .maybeSingle()
-
-    hasPendingLoan = !!pendingLoan
   }
 
   const availableCopies = inventory?.available_copies || 0
@@ -130,12 +117,7 @@ export default async function BookPage({ params }: PageProps) {
 
                 {user && (
                   <div className="pt-4 border-t border-border">
-                    <BorrowButton
-                      bookId={id}
-                      availableCopies={availableCopies}
-                      hasActiveLoan={hasActiveLoan}
-                      hasPendingLoan={hasPendingLoan}
-                    />
+                    <BorrowButton bookId={id} availableCopies={availableCopies} hasActiveLoan={hasActiveLoan} />
                   </div>
                 )}
 
